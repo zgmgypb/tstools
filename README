@@ -13,4 +13,4 @@ The tools are focused on:
 * Giving a quick overview of the entities in the stream (esdots, psdots)
 * Reporting on TS packets (tsreport) or ES units/frames/fields (esreport)
 * Simple manipulation of stream data (es2ts, esfilter, esreverse, esmerge, ts2es)
-* Streaming of data, possibly with introduced errors (tsplay)
+* Streaming of data, possibly with introduced errors (tsplay) [这个什么意思?]

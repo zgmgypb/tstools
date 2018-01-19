@@ -1,11 +1,11 @@
 ================
-TS tools library
+TS tools library TS 工具库说明
 ================
 
-.. contents::
+.. contents:: 目录
 
 
-Relevant International Standards
+Relevant International Standards 相关国际标准
 ================================
 
 - ISO/IEC 13818-1 (H.222.0) *Information technology - Generic coding of moving
@@ -32,92 +32,104 @@ Relevant International Standards
 Overview of modules
 ===================
 
-Standalone header files:
+Standalone header files: 单独头文件
 
-:compat.h:
+:compat.h: 为了兼容性的头文件
   Defines useful types for portability between Unices and Windows (for
   instance, the basic integer types and ``offset_t``, which is a 64 or
   32 bit file offset as appropriate).
 
-:h222_defns.h:
+:h222_defns.h: H.222 标准文档用到的变量定义
   Defines various values useful when using H.222.
 
 
 Source files:
 
-:accessunit.c:
+:accessunit.c: 处理 H.264 的 access units
   Handling H.264 access units, including reading them in as NAL units.
 
-:adts.c:
+:adts.c: AAC 一些支持
   Some minimal support for ISO/IEC 14496-3:2001(E) AAC ADTS audio streams -
   basically what is needed by the `esmerge` tool.
 
-:bitdata.c:
+:bitdata.c: 位级数据处理
   Handling bit level data, including reading Exp-Golomb encoded values. Used
   by the NAL unit reading functions in nalunit.c.
 
-:es.c:
+:es.c: ES 流层读写
   Reading and writing at an Elementary Stream level.
 
-:filter.c:
+:filter.c: 快进算法
   Fast forward algorithms.
 
-:h262.c:
+:h262.c: 处理 H262 图像
   Handling H.262 pictures.
 
-:misc.c:
+:misc.c: 杂项，也就是各种各项的东西提供各种各样
   As it says, various things that provide miscellaneous support.
 
-:nalunit.c:
+:nalunit.c: H.264 NAL 单元处理，主要作为 access units 处理的基础
   Handling H.264 NAL units, mainly as a base for access units.
 
-:pes.c:  
+:pes.c: 从 PS 和 TS 文件中提取 ES 数据  
   Reading PS or TS data, and extracting PES therefrom. Used as a level
   under es.c to allow reading of ES data from PS and TS files.
 
-:pidint.c:
+:pidint.c: 处理 PID 字典对应的整数??
   Handling "dictionaries" of PIDs versus integers (for instance, PID and
   program stream).
 
-:ps.c:
+:ps.c: 提供 ``ps_to_ts`` 函数，是 ps2ts 工具的基础
   Provides the ``ps_to_ts`` function, which forms the basis of the ps2ts tool.
 
-:reverse.c:
+:reverse.c: reverse 算法
   Reversing algorithms and support.
 
-:ts.c:
+:ts.c: 读和写 TS 流
   Reading and writing Transport Stream.
 
-:tswrite.c:
+:tswrite.c: 
+  支持和写 TS 包到文件，或者通过网络发送(UDP 或 TCP/IP).包含了 tsplay 的大部分
+  功能。也提供了 tsserve 代码，方便用 socket 从服务器读取命令字符。
   Support for writing Transport Stream packets, either to a file, over TCP/IP
   or (via a circular buffer) over UDP. This thus provides support for all
   tools that have a ``-host`` switch, and also the bulk of the functionality
   of tsplay. Also provides the code that allows tsserve to read command
   characters from a socket.
 
+每个文件 xxx 均有对应的头文件 xxx_defns.h 和 xxx_fns.h(可选)，xxx_defns.h 用于
+定义数据结构、常量和宏，xxx_fns.h 包含 xxx_defns.h，用于 ``extern`` 函数声明
 Each source file *xxx* also has associated with it a header file defining
 datastructures, constants and macros, called *xxx*\ _defns.h, and a header file
 detailing ``extern`` functions therefrom, called *xxx*\ _fns.h. The latter will
 always include the former.
 
+头文件中的函数说明是从源文件直接拷贝的，如果这些注释有冲突的地方，需要去进行
+对应地修正
 The documentation for each ``extern`` function is reproduced in the header
 file, directly copied from the source. This is done for the convenience of the
 user, but if any discrepancy occurs, the version of the functionc header
 comment in the source file should be taken as correct.
 
+不是所有的头文件中的函数是为了最终用户使用的，它只是为了库自己的声明。遗憾的是
+当前这些函数是没有标识的。
 Not all ``extern`` functions are intended for use by end-users. Some are
 really only used within the library itself. Unfortunately, these functions are
 not flagged as such at the moment.
 
-Reading data
+Reading data 读数据流程
 ============
+一般来说,各种MPEG实体不是直接从文件中读取,而是通过上下文数据结构。
 In general, the various MPEG entities are not read directly from a file, but
 through a context datastructure.
 
+例如，读取 access unit 和 NAL 单元不是顺序读取的，它可能依赖于视频序列和图片集
+的上下文。
 For instance, reading an access unit may stop before a particular NAL unit,
 which thus forms the start of the next access unit, and NAL units themselves
 need to be interpreted in the context of sequence and picture parameter sets.
 
+这是一个粗略的流程图
 These are arranged roughly as follows::
 
                 +-------------------+  (r)  +---------------+
@@ -156,15 +168,19 @@ These are arranged roughly as follows::
       context "over" an ES context.
 
 
-Access units, H.264, MPEG-4/AVC
+Access units, H.264, MPEG-4/AVC 访问单元等库处理
 -------------------------------
+访问单元被明确地在 ES 上下文创建
 An access unit context is explicitly built on top of an ES context::
 
    err = build_access_unit_context(es,&acontext);
    free_access_unit_context(&acontext);
 
+释放访问单元并不会释放 ES 上下文.
 Freeing the access unit context does not free the ES context.
 
+不但维护这些信息允许读访问单元，而且上下文也会记录 NAL 单元的踪迹。
+大多数情况这些对于用户是透明的，但在函数声明的注释中会有解释。
 As well as maintaining the information to allow reading access units, the
 context also remembers any trailing (end of sequence or end of stream) NAL
 units. This is mostly transparent to the user, but is explained in the
